@@ -6,8 +6,10 @@
   "type": "module",
   "scripts": {
     "preview": "node serve.mjs",
+    "music": "node music/compose.mjs",
     "render": "node render.mjs",
-    "render:draft": "node render.mjs --fps 15 --scale 0.5 --out out/clawGS-promo-draft.mp4"
+    "build": "node music/compose.mjs && node render.mjs",
+    "render:draft": "node render.mjs --fps 15 --out out/clawGS-promo-draft.mp4"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.5",

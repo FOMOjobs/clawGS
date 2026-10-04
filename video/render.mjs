@@ -1,8 +1,9 @@
 // Renders the promo timeline frame-by-frame with headless Chromium and encodes it with ffmpeg.
 //
-//   node render.mjs                         → clawGS-promo.mp4 (1920x1080, 30 fps)
+//   node render.mjs                         → clawGS-promo.mp4 (1920x1080, 30 fps, with assets/soundtrack.m4a)
 //   node render.mjs --fps 60                → smoother motion, 2x render time
-//   node render.mjs --audio music.mp3       → mux a soundtrack (trimmed to the video, 2 s fade-out)
+//   node render.mjs --audio music.mp3       → use another track instead (trimmed to the video, 2 s fade-out)
+//   node render.mjs --no-audio              → silent video
 //   node render.mjs --stills 1.5,12,24      → PNG stills at those seconds into out/stills/
 //   node render.mjs --from 18 --to 31 --out out/part.mp4   → render only part of the timeline
 //
@@ -25,7 +26,9 @@ function arg(name, def) {
 
 const FPS = Number(arg('fps', 30));
 const OUT = path.resolve(ROOT, arg('out', 'clawGS-promo.mp4'));
-const AUDIO = arg('audio', null);
+const SOUNDTRACK = path.join(ROOT, 'assets', 'soundtrack.m4a');
+const CUSTOM_AUDIO = arg('audio', null);
+const AUDIO = process.argv.includes('--no-audio') ? null : CUSTOM_AUDIO || (fs.existsSync(SOUNDTRACK) ? SOUNDTRACK : null);
 const WORKERS = Number(arg('workers', Math.max(1, Math.min(4, os.cpus().length))));
 const CRF = arg('crf', '16');
 const STILLS = arg('stills', null);
@@ -119,7 +122,11 @@ try {
     fs.writeFileSync(list, segments.filter(Boolean).map((f) => `file '${f}'`).join('\n'));
     const len = total / FPS;
     const ffArgs = ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list];
-    if (AUDIO) {
+    if (AUDIO && !CUSTOM_AUDIO) {
+      // the generated soundtrack is already cut to the timeline — offset it for partial renders
+      ffArgs.push('-ss', String(from), '-i', AUDIO, '-map', '0:v', '-map', '1:a', '-c:v', 'copy',
+        ...(from > 0 || to < duration ? ['-c:a', 'aac', '-b:a', '192k'] : ['-c:a', 'copy']), '-t', len.toFixed(3));
+    } else if (AUDIO) {
       ffArgs.push('-i', path.resolve(process.cwd(), AUDIO), '-map', '0:v', '-map', '1:a', '-c:v', 'copy',
         '-af', `afade=t=out:st=${Math.max(0, len - 2).toFixed(2)}:d=2`, '-c:a', 'aac', '-b:a', '192k', '-t', len.toFixed(3));
     } else {
@@ -131,7 +138,7 @@ try {
       ff.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg concat failed ${code}`))));
     });
     fs.rmSync(tmp, { recursive: true, force: true });
-    console.log(`Done → ${path.relative(process.cwd(), OUT)} in ${((Date.now() - started) / 1000).toFixed(0)} s`);
+    console.log(`Done → ${path.relative(process.cwd(), OUT)} in ${((Date.now() - started) / 1000).toFixed(0)} s${AUDIO ? ` (audio: ${path.relative(process.cwd(), AUDIO)})` : ' (silent)'}`);
   }
 } finally {
   await browser.close();

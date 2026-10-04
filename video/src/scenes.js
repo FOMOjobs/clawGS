@@ -1,6 +1,6 @@
 import {
   gsap, icon, C, add, svg, scene, showScene, splitWords, splitChars, clawLogo, watermark, header, headerIn,
-  clawMarks, clawIn, shake, counter, pop, rng,
+  clawMarks, clawIn, shake, counter, pop, rng, cue,
 } from './lib.js';
 import { COPY } from './copy.js';
 
@@ -42,7 +42,7 @@ function blockPacket(tl, p, w, at, hl) {
 // ---------------------------------------------------------------------------
 export function buildIntro(tl, start, end) {
   const s = scene('s-intro', 'bg-navy grid');
-  showScene(tl, s, start, end);
+  showScene(tl, s, start, end, { immediate: true });
 
   const black = add(s, `<div class="abs" style="inset:0;background:${C.ink}"></div>`);
   const marks = clawMarks(s, { x: 0, y: 0, w: 1920, h: 1080, angle: -58, len: 1500, spacing: 125, thick: 9, color: C.sky });
@@ -61,7 +61,7 @@ export function buildIntro(tl, start, end) {
 
   const t = start;
   // scratches tear through the dark
-  clawIn(tl, marks, t + 0.25, 0.22);
+  clawIn(tl, marks, t + 0.25, 0.22, 'scratchBig');
   shake(tl, t + 0.4, 14, 0.32);
   tl.to(black, { opacity: 0, duration: 0.45, ease: 'power2.out' }, t + 0.62);
   tl.to(marks.el, { opacity: 0.2, duration: 0.6 }, t + 0.9);
@@ -70,17 +70,20 @@ export function buildIntro(tl, start, end) {
   tl.to(left, { x: 0, rotation: 0, duration: 0.48, ease: 'back.out(1.25)' }, t + 1.0);
   tl.to(right, { x: 0, rotation: 0, duration: 0.48, ease: 'back.out(1.25)' }, t + 1.0);
   shake(tl, t + 1.3, 26, 0.45);
+  cue(tl, 'impact', t + 1.3);
   tl.fromTo(ring, { scale: 0.2, opacity: 1 }, { scale: 3.4, opacity: 0, duration: 0.7, ease: 'power2.out', immediateRender: false }, t + 1.3);
 
   // wordmark
   tl.fromTo(chars, { y: -150, rotation: (i) => (i % 2 ? 14 : -12) }, {
     y: 0, rotation: 0, opacity: 1, duration: 0.55, stagger: 0.055, ease: 'back.out(2.2)',
   }, t + 1.55);
+  cue(tl, 'letters', t + 1.55, { step: 0.055 });
   tl.fromTo(kick, { letterSpacing: '0.95em' }, { letterSpacing: '0.42em', opacity: 1, duration: 0.8, ease: 'power3.out' }, t + 2.0);
   tl.fromTo(tagWords, { y: 26 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.12, ease: 'power3.out' }, t + 2.3);
 
   // the joke
   tl.fromTo(sticker, { scale: 0, rotation: -35 }, { scale: 1, rotation: 8, opacity: 1, duration: 0.5, ease: 'back.out(3)' }, t + 3.0);
+  cue(tl, 'pop', t + 3.0);
   tl.to(sticker, { keyframes: [{ rotation: -6, duration: 0.09 }, { rotation: 10, duration: 0.09 }, { rotation: -3, duration: 0.09 }, { rotation: 8, duration: 0.1 }] }, t + 3.6);
 
   // claws breathe, wind up, swipe
@@ -89,6 +92,7 @@ export function buildIntro(tl, start, end) {
   tl.to(left, { x: -80, rotation: -7, duration: 0.3, ease: 'power2.out' }, t + 4.42);
   tl.to(right, { x: 80, rotation: 7, duration: 0.3, ease: 'power2.out' }, t + 4.42);
   tl.to(left, { x: 640, rotation: 26, duration: 0.34, ease: 'power3.in' }, t + 4.76);
+  cue(tl, 'swish', t + 4.76);
   tl.to(right, { x: -640, rotation: -26, duration: 0.34, ease: 'power3.in' }, t + 4.76);
   tl.to([kick, logo, tag, sticker], { scale: 0.9, opacity: 0, duration: 0.28, ease: 'power2.in' }, t + 4.86);
 }
@@ -174,6 +178,7 @@ export function buildProblem(tl, start, end) {
     const at = t + 1.75 + i * 0.2;
     tl.fromTo(chip, { scale: 0.7 }, { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(2.5)' }, at);
     tl.to(tx, { duration: 0.55, scrambleText: { text: txt, chars: 'X#%&@!?01', speed: 1.2 } }, at);
+    cue(tl, 'glitch', at);
     tl.to(chip, { keyframes: [{ x: 6, duration: 0.04 }, { x: -5, duration: 0.04 }, { x: 0, duration: 0.04 }] }, at + 0.62);
   });
   // lines go nervous
@@ -187,6 +192,7 @@ export function buildProblem(tl, start, end) {
   tl.to(left, { y: 520, rotation: 0, duration: 0.45, ease: 'back.out(1.6)' }, t + 4.45);
   tl.to(right, { y: 520, rotation: 0, duration: 0.45, ease: 'back.out(1.6)' }, t + 4.45);
   shake(tl, t + 4.75, 12, 0.3);
+  cue(tl, 'impactSoft', t + 4.75);
   const em = h2.querySelector('em');
   tl.to(em, { scale: 1.08, duration: 0.15, yoyo: true, repeat: 1, transformOrigin: '0% 60%' }, t + 4.75);
 }
@@ -243,15 +249,21 @@ export function buildDropIn(tl, start, end) {
   // select → delete → type the new base_url
   tl.to(url, { backgroundColor: 'rgba(115,153,198,.55)', duration: 0.2 }, t + 1.65);
   tl.to(url, { text: '', duration: 0.12, ease: 'none' }, t + 2.05);
+  cue(tl, 'tick', t + 2.05);
   tl.set(url, { backgroundColor: 'rgba(0,0,0,0)' }, t + 2.17);
   tl.set(caret, { opacity: 1 }, t + 2.05);
   tl.to(url, { text: D.newUrl, duration: 0.75, ease: 'none' }, t + 2.2);
+  cue(tl, 'typing', t + 2.2, { dur: 0.75, n: D.newUrl.length });
   tl.to(caret, { opacity: 0, duration: 0.01, repeat: 3, yoyo: true, repeatDelay: 0.22 }, t + 3.0);
   tl.set(caret, { opacity: 0 }, t + 3.75);
   tl.to(lineHl, { opacity: 1, duration: 0.3 }, t + 3.0);
   tl.fromTo(badge, { y: 20, scale: 0.9 }, { y: 0, scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(2)' }, t + 3.15);
+  cue(tl, 'pop', t + 3.15);
 
-  oks.forEach((o, i) => tl.to(o, { scale: 1, duration: 0.35, ease: 'back.out(3)' }, t + 3.35 + i * 0.13));
+  oks.forEach((o, i) => {
+    tl.to(o, { scale: 1, duration: 0.35, ease: 'back.out(3)' }, t + 3.35 + i * 0.13);
+    cue(tl, 'blip', t + 3.35 + i * 0.13, { pitch: i });
+  });
   tl.to(rows, { keyframes: [{ borderColor: C.blue, backgroundColor: 'rgba(172,212,241,.35)', duration: 0.18 }, { borderColor: C.sky, backgroundColor: 'rgba(255,255,255,1)', duration: 0.35 }], stagger: 0.12 }, t + 4.35);
 }
 
@@ -344,6 +356,7 @@ export function buildGuardrails(tl, start, end) {
     const g = gateEls[gi];
     const tick = add(s, `<div class="gate-tick ${ok ? '' : 'x'}" style="left:${g.x}px;top:${Y + 132}px">${icon(ok ? 'check' : 'x', { size: 26, width: 3 })}</div>`);
     ticks.push(tick);
+    cue(tl, ok ? 'blip' : 'deny', at, { pitch: gi });
     gsap.set(tick, { scale: 0, opacity: 0 });
     tl.to(tick, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(3)' }, at);
     tl.to(tick, { opacity: 0, y: 12, duration: 0.3 }, at + (ok ? 0.75 : 1.7));
@@ -412,6 +425,7 @@ export function buildGuardrails(tl, start, end) {
   tl.to(miss, { opacity: 0, duration: 0.3 }, a + 1.6);
   tl.fromTo(dm, { y: 20, scale: 0.94 }, { y: 0, scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, a + 0.05);
   const dmO = { v: 0 };
+  cue(tl, 'scan', a + 0.3, { dur: 1.15 });
   tl.to(dmO, {
     v: 0.94, duration: 1.15, ease: 'power2.inOut',
     onUpdate: () => {
@@ -507,6 +521,7 @@ export function buildBlocks(tl, start, end) {
   });
   const msgs = cards.map((c) => c.querySelector('.msg'));
   tl.to(msgs, { backgroundColor: C.sky, color: C.navy, borderRadius: 6, duration: 0.25, stagger: 0.15 }, t + 2.3);
+  msgs.forEach((_, i) => cue(tl, 'blip', t + 2.3 + i * 0.15, { pitch: 2 + i }));
   tl.to(msgs, { scale: 1.06, duration: 0.15, yoyo: true, repeat: 1, stagger: 0.15 }, t + 2.3);
   chips.forEach((c, i) => tl.fromTo(c, { y: 20, scale: 0.9 }, { y: 0, scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)' }, t + 2.9 + i * 0.14));
 }
@@ -573,12 +588,15 @@ export function buildMcp(tl, start, end) {
     tl.fromTo(p, { x: AG, scale: 0.3, opacity: 0 }, { x: AG + 250, scale: 1, opacity: 1, duration: 0.32, ease: 'power2.out' }, at);
     return at + 0.32;
   };
-  const gateGlow = (at, ok) => tl.to(gate, {
-    keyframes: [
-      { borderColor: ok ? C.sky : C.white, scale: 1.06, duration: 0.1 },
-      { borderColor: C.sky, scale: 1, duration: 0.4 },
-    ],
-  }, at);
+  const gateGlow = (at, ok) => {
+    cue(tl, ok ? 'blip' : 'deny', at, { pitch: 1 });
+    tl.to(gate, {
+      keyframes: [
+        { borderColor: ok ? C.sky : C.white, scale: 1.06, duration: 0.1 },
+        { borderColor: C.sky, scale: 1, duration: 0.4 },
+      ],
+    }, at);
+  };
 
   // call 1 — whitelisted → passes behind the gate and lands on the tool
   let a = emerge(pills[0], t + 1.4);
@@ -586,6 +604,7 @@ export function buildMcp(tl, start, end) {
   gateGlow(a + 0.3, true);
   tl.to(pills[0], { x: 1110, y: -97, scale: 0.4, opacity: 0, duration: 0.5, ease: 'power2.in' }, a + 0.45);
   tl.to(toolRows[0], { keyframes: [{ backgroundColor: 'rgba(172,212,241,.6)', duration: 0.15 }, { backgroundColor: 'rgba(172,212,241,0)', duration: 0.6 }] }, a + 0.9);
+  cue(tl, 'blip', a + 0.9, { pitch: 4 });
 
   // call 2 — not on the whitelist
   a = emerge(pills[1], t + 2.5);
@@ -676,6 +695,7 @@ export function buildBudgets(tl, start, end) {
     const pctNow = (total / 50) * 100;
     const p = add(pops, `<span class="abs" style="left:${40 + (pctNow / 100) * 730 - 40}px;top:262px;font:800 22px/1 var(--mono);color:${C.blue};opacity:0">+$${d.toFixed(2)}</span>`);
     tl.fromTo(p, { y: 0, opacity: 0 }, { y: -40, opacity: 1, duration: 0.25 }, at);
+    cue(tl, 'coin', at, { pitch: i });
     tl.to(p, { y: -70, opacity: 0, duration: 0.3 }, at + 0.25);
     const o = { v: prev, w: pctPrev };
     tl.to(o, {
@@ -690,6 +710,7 @@ export function buildBudgets(tl, start, end) {
   });
   const capAt = at + 0.1;
   tl.to(fill, { backgroundColor: C.ink, duration: 0.2 }, capAt);
+  cue(tl, 'deny', capAt);
   tl.to([amt, pct], { color: C.ink, duration: 0.2 }, capAt);
   const lm = clawMarks(L, { x: 420, y: 196, w: 360, h: 170, angle: -58, len: 210, spacing: 52, thick: 5.5, color: C.navy, glow: false });
   clawIn(tl, lm, capAt + 0.05);
@@ -699,9 +720,12 @@ export function buildBudgets(tl, start, end) {
   // rate limit dots fill, request #61 bounces
   tl.to(dots, { backgroundColor: C.blue, borderColor: C.navy, duration: 0.12, stagger: 0.034 }, t + 1.3);
   counter(tl, cnt, { from: 0, to: 60, at: t + 1.3, dur: 60 * 0.034 + 0.1, ease: 'none' });
+  cue(tl, 'ticks', t + 1.3, { dur: 60 * 0.034, n: 60 });
   const bounceAt = t + 1.3 + 60 * 0.034 + 0.35;
   tl.to(extra, { opacity: 1, x: 40, duration: 0.25, ease: 'power2.in' }, bounceAt);
   tl.to(extra, { x: -30, rotation: -40, opacity: 0, duration: 0.45, ease: 'power2.out' }, bounceAt + 0.25);
+  cue(tl, 'thud', bounceAt + 0.25);
+  cue(tl, 'deny', bounceAt + 0.35);
   tl.to(dotsWrap, { keyframes: [{ x: 6, duration: 0.05 }, { x: -4, duration: 0.05 }, { x: 0, duration: 0.05 }] }, bounceAt + 0.25);
   tl.to(dots, { opacity: 0.35, duration: 0.3 }, bounceAt + 0.35);
   tl.fromTo(R.querySelector('.blk2'), { scale: 0.7 }, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2.5)' }, bounceAt + 0.35);
@@ -830,8 +854,11 @@ export function buildReporting(tl, start, end) {
   const mAt = t + 4.7;
   tl.to(dash.querySelector('.dim'), { opacity: 1, duration: 0.3 }, mAt);
   tl.fromTo(modal, { y: 40, scale: 0.94 }, { y: 0, scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(1.8)' }, mAt + 0.05);
+  cue(tl, 'pop', mAt + 0.05);
   tl.fromTo(pols, { x: -16 }, { x: 0, opacity: 1, duration: 0.3, stagger: 0.18 }, mAt + 0.45);
+  ['blip', 'blip', 'deny'].forEach((k, i) => cue(tl, k, mAt + 0.45 + i * 0.18, { pitch: i }));
   tl.fromTo(wh, { y: 10 }, { y: 0, opacity: 1, duration: 0.35, ease: 'back.out(2)' }, mAt + 1.2);
+  cue(tl, 'blip', mAt + 1.2, { pitch: 5 });
 }
 
 // ---------------------------------------------------------------------------
@@ -862,6 +889,7 @@ export function buildEssentials(tl, start, end) {
     y: 0, scale: 1, rotation: 0, opacity: 1, duration: 0.6, stagger: 0.09, ease: 'back.out(1.7)',
   }, t + 0.75);
   tl.fromTo(icos, { scale: 0, rotation: -40 }, { scale: 1, rotation: 0, duration: 0.45, stagger: 0.09, ease: 'back.out(3)' }, t + 0.95);
+  tiles.forEach((_, i) => cue(tl, 'pop', t + 0.75 + i * 0.09, { soft: true, pitch: i }));
   tl.fromTo(shines, { x: 0 }, { x: 760, duration: 0.8, stagger: 0.07, ease: 'power2.inOut' }, t + 2.25);
   tl.to(tiles, { keyframes: [{ y: -14, duration: 0.18 }, { y: 0, duration: 0.3, ease: 'bounce.out' }], stagger: 0.06 }, t + 3.2);
   tl.to(tiles, { scale: 0.6, opacity: 0, duration: 0.35, stagger: { each: 0.03, from: 'center' }, ease: 'power2.in' }, end - 0.55);
@@ -895,19 +923,23 @@ export function buildOutro(tl, start, end) {
   tl.to(left, { x: 0, rotation: 0, duration: 0.48, ease: 'back.out(1.25)' }, t + 0.2);
   tl.to(right, { x: 0, rotation: 0, duration: 0.48, ease: 'back.out(1.25)' }, t + 0.2);
   shake(tl, t + 0.5, 22, 0.4);
+  cue(tl, 'impact', t + 0.5);
   tl.fromTo(ring, { scale: 0.2, opacity: 1 }, { scale: 3.4, opacity: 0, duration: 0.7, ease: 'power2.out', immediateRender: false }, t + 0.5);
   tl.fromTo(chars, { y: -150, rotation: (i) => (i % 2 ? 14 : -12) }, {
     y: 0, rotation: 0, opacity: 1, duration: 0.55, stagger: 0.05, ease: 'back.out(2.2)',
   }, t + 0.7);
+  cue(tl, 'letters', t + 0.7, { step: 0.05 });
   tl.fromTo(lw, { y: 30 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.08, ease: 'power3.out' }, t + 1.3);
   tl.fromTo(tag, { letterSpacing: '0.7em' }, { letterSpacing: '0.32em', opacity: 1, duration: 0.8, ease: 'power3.out' }, t + 1.9);
   tl.to(left, { rotation: -2.5, scale: 0.975, duration: 0.9, yoyo: true, repeat: 1, ease: 'sine.inOut' }, t + 1.0);
   tl.to(right, { rotation: 2.5, scale: 0.975, duration: 0.9, yoyo: true, repeat: 1, ease: 'sine.inOut' }, t + 1.0);
   tl.fromTo(sticker, { scale: 0, rotation: -35 }, { scale: 1, rotation: 8, opacity: 1, duration: 0.5, ease: 'back.out(3)' }, t + 2.6);
+  cue(tl, 'pop', t + 2.6);
   tl.to(sticker, { keyframes: [{ rotation: -6, duration: 0.09 }, { rotation: 10, duration: 0.09 }, { rotation: -3, duration: 0.09 }, { rotation: 8, duration: 0.1 }] }, t + 3.1);
   // claws clench on the logo, then lights out
   tl.to(left, { x: 70, rotation: 6, duration: 0.25, ease: 'power2.in' }, t + 3.55);
   tl.to(right, { x: -70, rotation: -6, duration: 0.25, ease: 'power2.in' }, t + 3.55);
   shake(tl, t + 3.8, 10, 0.25);
+  cue(tl, 'impactSoft', t + 3.8);
   tl.to(black, { opacity: 1, duration: 0.7, ease: 'power2.in' }, end - 0.75);
 }

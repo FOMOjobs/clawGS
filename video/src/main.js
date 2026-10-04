@@ -2,7 +2,8 @@ import { gsap } from '../node_modules/gsap/index.js';
 import { TextPlugin } from '../node_modules/gsap/TextPlugin.js';
 import { ScrambleTextPlugin } from '../node_modules/gsap/ScrambleTextPlugin.js';
 import { DrawSVGPlugin } from '../node_modules/gsap/DrawSVGPlugin.js';
-import { C, slashWipe } from './lib.js';
+import { C, slashWipe, cue, resolveCues } from './lib.js';
+import { CUT, END, BPM } from './timing.js';
 import {
   buildIntro, buildProblem, buildDropIn, buildGuardrails, buildBlocks, buildMcp, buildBudgets, buildReporting,
   buildEssentials, buildOutro,
@@ -17,57 +18,63 @@ const stage = document.getElementById('stage');
 const shakeEl = document.getElementById('shake');
 shakeEl.insertAdjacentHTML('beforeend', '<svg id="wipe" viewBox="0 0 1920 1080"></svg><div id="flash"></div>');
 
-function zoomThrough(tl, from, to, at) {
-  tl.to(from, { scale: 1.18, opacity: 0, duration: 0.45, ease: 'power2.in' }, at);
-  tl.fromTo(to, { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.55, ease: 'power3.out', immediateRender: false }, at + 0.3);
-  tl.fromTo('#flash', { opacity: 0 }, { opacity: 0.5, duration: 0.09, yoyo: true, repeat: 1, immediateRender: false }, at + 0.3);
+// Zoom through the frame; the new scene lands on `cut`.
+function zoomThrough(tl, from, to, cut) {
+  tl.to(from, { scale: 1.2, opacity: 0, duration: 0.7, ease: 'power2.in' }, cut - 0.5);
+  tl.fromTo(to, { scale: 0.88, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.85, ease: 'power3.out', immediateRender: false }, cut - 0.1);
+  tl.fromTo('#flash', { opacity: 0 }, { opacity: 0.5, duration: 0.12, yoyo: true, repeat: 1, immediateRender: false }, cut - 0.1);
+  cue(tl, 'whoosh', cut - 0.75, { dur: 0.75, short: true });
 }
 
-function push(tl, from, to, at, axis = 'x') {
+// Push the old scene out while the new one slides in; `cut` is the middle of the move.
+function push(tl, from, to, cut, axis = 'x') {
   const d = axis === 'x' ? 1920 : 1080;
-  tl.to(from, { [axis]: -d, duration: 0.6, ease: 'power3.inOut' }, at);
-  tl.fromTo(to, { [axis]: d }, { [axis]: 0, duration: 0.6, ease: 'power3.inOut', immediateRender: false }, at);
+  tl.to(from, { [axis]: -d, duration: 1.0, ease: 'power3.inOut' }, cut - 0.5);
+  tl.fromTo(to, { [axis]: d }, { [axis]: 0, duration: 1.0, ease: 'power3.inOut', immediateRender: false }, cut - 0.5);
+  cue(tl, 'whoosh', cut - 0.5, { dur: 0.6, short: true });
 }
 
 function build() {
   const tl = gsap.timeline({ paused: true });
   const $ = (id) => document.getElementById(id);
 
-  // S1 intro → claw wipe → S2 problem → claw wipe → S3 drop-in
-  const w1 = slashWipe(tl, 5.0, [C.sky, C.white, C.blue]);
-  buildIntro(tl, 0, w1);
-  const w2 = slashWipe(tl, 10.9, [C.white, C.sky, C.navy]);
-  buildProblem(tl, w1, w2);
+  // Each scene is built on its own timeline (local time from 0) and slowed down by `pace`
+  // (< 1 = calmer); `hideAt` is the video time at which the scene is removed.
+  const addScene = (builder, start, pace, hideAt) => {
+    const sub = gsap.timeline();
+    builder(sub, 0, (hideAt - start) * pace);
+    sub.timeScale(pace);
+    tl.add(sub, start);
+  };
+
+  // S1 intro → claw wipe → S2 problem → claw wipe (music drop) → S3 drop-in
+  addScene(buildIntro, 0, 0.8, CUT.problem);
+  slashWipe(tl, CUT.problem, [C.sky, C.white, C.blue]);
+  addScene(buildProblem, CUT.problem, 0.8, CUT.dropIn);
+  slashWipe(tl, CUT.dropIn, [C.white, C.sky, C.navy]);
 
   // S3 → zoom → S4 guardrails
-  const z3 = 17.9;
-  buildDropIn(tl, w2, z3 + 0.45);
-  buildGuardrails(tl, z3 + 0.3, null);
-  zoomThrough(tl, $('s-dropin'), $('s-guard'), z3);
+  addScene(buildDropIn, CUT.dropIn, 0.85, CUT.guard + 0.25);
+  addScene(buildGuardrails, CUT.guard - 0.1, 0.8, CUT.blocks);
+  zoomThrough(tl, $('s-dropin'), $('s-guard'), CUT.guard);
 
   // S4 → claw wipe → S5 block responses → push → S6 MCP
-  const w4 = slashWipe(tl, 30.3, [C.sky, C.navy, C.white]);
-  tl.set($('s-guard'), { autoAlpha: 0 }, w4);
-  const p5 = 35.8;
-  buildBlocks(tl, w4, p5 + 0.6);
-  buildMcp(tl, p5, null);
-  push(tl, $('s-blocks'), $('s-mcp'), p5, 'x');
+  slashWipe(tl, CUT.blocks, [C.sky, C.navy, C.white]);
+  addScene(buildBlocks, CUT.blocks, 0.75, CUT.mcp + 0.5);
+  addScene(buildMcp, CUT.mcp - 0.5, 0.9, CUT.budgets);
+  push(tl, $('s-blocks'), $('s-mcp'), CUT.mcp, 'x');
 
   // S6 → claw wipe → S7 budgets → push up → S8 reporting
-  const w6 = slashWipe(tl, 41.9, [C.blue, C.white, C.sky]);
-  tl.set($('s-mcp'), { autoAlpha: 0 }, w6);
-  const p7 = 48.2;
-  buildBudgets(tl, w6, p7 + 0.6);
-  buildReporting(tl, p7, null);
-  push(tl, $('s-budget'), $('s-report'), p7, 'y');
+  slashWipe(tl, CUT.budgets, [C.blue, C.white, C.sky]);
+  addScene(buildBudgets, CUT.budgets, 0.8, CUT.report + 0.5);
+  addScene(buildReporting, CUT.report - 0.5, 0.8, CUT.essentials);
+  push(tl, $('s-budget'), $('s-report'), CUT.report, 'y');
 
-  // S8 → claw wipe → S9 essentials → S10 outro
-  const w8 = slashWipe(tl, 55.3, [C.white, C.blue, C.sky]);
-  tl.set($('s-report'), { autoAlpha: 0 }, w8);
-  const o = 61.5;
-  buildEssentials(tl, w8, o + 0.4);
-  buildOutro(tl, o, 66.6);
-  tl.set({}, {}, 66.6); // pin the total duration
+  // S8 → claw wipe → S9 essentials → S10 outro (final clench lands on bar 34)
+  slashWipe(tl, CUT.essentials, [C.white, C.blue, C.sky]);
+  addScene(buildEssentials, CUT.essentials, 0.8, CUT.outro + 0.15);
+  addScene(buildOutro, CUT.outro + 0.05, 0.8, END);
+  tl.set({}, {}, END); // pin the total duration
   return tl;
 }
 
@@ -88,6 +95,8 @@ const tl = build();
 const DURATION = tl.duration();
 
 window.__duration = DURATION;
+window.__cues = resolveCues(tl);
+window.__music = { bpm: BPM, cut: CUT, end: END };
 window.__seek = (t) => {
   tl.seek(t, false);
 };

@@ -34,10 +34,39 @@ export function scene(id, cls) {
   return add(document.getElementById('shake'), `<section class="scene ${cls}" id="${id}"></section>`);
 }
 
-/** Show a scene from `start` to `end` (hidden again at `end`, if given). */
-export function showScene(tl, el, start, end) {
-  tl.set(el, { autoAlpha: 1 }, start);
-  if (end != null) tl.set(el, { autoAlpha: 0 }, end);
+/**
+ * Show a scene from `start` to `end` (hidden again at `end`, if given).
+ * Scenes live in nested timelines, so the "show" must not render at build time.
+ */
+export function showScene(tl, el, start, end, { immediate = false } = {}) {
+  if (immediate) gsap.set(el, { autoAlpha: 1 });
+  else tl.set(el, { autoAlpha: 1, immediateRender: false }, start);
+  if (end != null) tl.set(el, { autoAlpha: 0, immediateRender: false }, end);
+}
+
+/**
+ * Sound cues. Scenes register sound effects / musical hits at their local time;
+ * resolveCues() maps them to video time (through nested, time-scaled timelines)
+ * so music/compose.mjs can lay the soundtrack exactly on the picture.
+ */
+const CUES = [];
+export function cue(tl, type, at, opts = {}) {
+  CUES.push({ tl, type, at, opts });
+}
+export function resolveCues(root) {
+  const toGlobal = (tl, t) => {
+    let node = tl;
+    while (node && node !== root) {
+      t = node.startTime() + t / node.timeScale();
+      node = node.parent;
+    }
+    return Math.round(t * 1000) / 1000;
+  };
+  return CUES.map(({ tl, type, at, opts }) => {
+    const out = { type, t: toGlobal(tl, at), ...opts };
+    if (opts.dur != null) out.dur = Math.round((toGlobal(tl, at + opts.dur) - out.t) * 1000) / 1000;
+    return out;
+  }).sort((a, b) => a.t - b.t);
 }
 
 // Deterministic PRNG so every render of the video is identical.
@@ -149,8 +178,9 @@ export function clawMarks(parent, { x, y, w, h, angle = -60, len, spacing, thick
   return { el, paths };
 }
 
-export function clawIn(tl, marks, at, dur = 0.16) {
+export function clawIn(tl, marks, at, dur = 0.16, sound = 'scratch') {
   tl.to(marks.paths, { scaleX: 1, duration: dur, stagger: 0.05, ease: 'power4.out' }, at);
+  if (sound) cue(tl, sound, at);
 }
 
 /** Screen shake on the whole stage. */
@@ -179,10 +209,10 @@ export function pop(tl, targets, at, { from = 0.6, dur = 0.5, stagger = 0, ease 
 
 /**
  * Full-screen claw-slash wipe: three scratches tear across the frame, swell until they
- * cover it, then thin out again to reveal the next scene.
- * Returns the time at which the frame is fully covered (switch scenes there).
+ * cover it at `cover` (switch scenes there), then thin out again to reveal the next scene.
  */
-export function slashWipe(tl, at, colors = [C.sky, C.white, C.blue]) {
+export function slashWipe(tl, cover, colors = [C.sky, C.white, C.blue]) {
+  const at = cover - 1.0;
   const root = document.getElementById('wipe');
   const outer = svg('g', { transform: 'rotate(-62 960 540)' });
   const inner = svg('g');
@@ -201,16 +231,16 @@ export function slashWipe(tl, at, colors = [C.sky, C.white, C.blue]) {
   const redraw = (i) => () => paths[i].setAttribute('d', lens(960, 540 + OFFS[i], HALF, proxies[i].t));
 
   tl.set(paths, { visibility: 'visible' }, at);
-  tl.to(paths, { scaleX: 1, duration: 0.26, stagger: 0.06, ease: 'power3.out' }, at);
+  tl.to(paths, { scaleX: 1, duration: 0.38, stagger: 0.08, ease: 'power3.out' }, at);
   paths.forEach((_, i) => {
-    tl.to(proxies[i], { t: 1000, duration: 0.42, ease: 'power2.in', onUpdate: redraw(i) }, at + 0.2 + i * 0.05);
+    tl.to(proxies[i], { t: 1000, duration: 0.6, ease: 'power2.in', onUpdate: redraw(i) }, at + 0.3 + i * 0.05);
   });
-  const cover = at + 0.74;
   paths.forEach((_, i) => {
-    tl.to(proxies[i], { t: 0, duration: 0.55, ease: 'power3.out', onUpdate: redraw(i) }, cover + 0.02 + i * 0.05);
+    tl.to(proxies[i], { t: 0, duration: 0.85, ease: 'power3.out', onUpdate: redraw(i) }, cover + 0.02 + i * 0.07);
   });
-  tl.to(inner, { x: -420, duration: 0.7, ease: 'power2.out' }, cover);
-  tl.set(paths, { visibility: 'hidden' }, cover + 0.75);
+  tl.to(inner, { x: -480, duration: 1.1, ease: 'power2.out' }, cover);
+  tl.set(paths, { visibility: 'hidden' }, cover + 1.1);
+  cue(tl, 'whoosh', at, { dur: 1.0 });
   return cover;
 }
 
